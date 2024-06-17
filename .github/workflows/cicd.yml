@@ -69,4 +69,6 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/rms:${{ env.TAG }}
+            docker stop rms || true
+            docker rm rms || true
             docker run -d --name rms -p 8443:8443 ${{ secrets.DOCKER_HUB_USERNAME }}/rms:${{ env.TAG }}

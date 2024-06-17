@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import org.springframework.boot.gradle.tasks.bundling.BootWar
 
 plugins {
 	id("org.springframework.boot") version "2.7.5"
@@ -51,6 +52,8 @@ dependencies {
 	implementation ("com.google.maps:google-maps-services:0.15.0")
 	implementation("com.opencsv:opencsv:4.0")
 	implementation("org.springframework.boot:spring-boot-starter-mail:2.7.5")
+	testImplementation("com.h2database:h2") //TODO: check this later
+
 
 }
 
@@ -63,4 +66,9 @@ tasks.withType<KotlinCompile> {
 
 tasks.withType<Test> {
 	useJUnitPlatform()
+}
+
+tasks.withType<BootWar> {
+	enabled = true
+	archiveFileName.set("rmproserver-0.0.1-SNAPSHOT.war")
 }

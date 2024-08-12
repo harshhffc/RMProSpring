@@ -212,12 +212,11 @@ class RMMScheduler(
 //    }
 
 
-    @Scheduled(cron = "0 24 12 * * *", zone = "IST")  // TODO: Uncomment for production
+    @Scheduled(cron = "0 30 12 * * *", zone = "IST")  // TODO: Uncomment for production
     @Async
     fun backUpLogs() {
 
-        if (!appProperty.backupLog)
-            return
+        log("backup schedular started")
 
         try {
             log("backUpLogs - process to move log files to S3")

@@ -133,7 +133,86 @@ class RMMScheduler(
     }
 
 //    @Scheduled(initialDelay = 1000, fixedDelay = Long.MAX_VALUE) //TODO: Comment for production
-    @Scheduled(cron = "0 5 12 * * *", zone = "IST")  //TODO: Uncomment for production
+//    @Scheduled(cron = "0 5 12 * * *", zone = "IST")  //TODO: Uncomment for production
+//    @Async
+//    fun backUpLogs() {
+//
+//        if (!appProperty.backupLog)
+//            return
+//
+//        try {
+//
+//            log("backUpLogs - process to move log files to S3")
+//
+////            val logsDir = if (appProperty.isProduction()) File("/usr/share/tomcat/logs")
+////            else File(appProperty.filePath)
+//
+//            val containerName = "your_tomcat_container_name"  // Replace with your actual container name
+//
+//            val logsDirPath = "/usr/local/tomcat/logs"
+//            val process = Runtime.getRuntime().exec("docker exec $containerName ls $logsDirPath")
+//
+//            val logsDir = File("/usr/local/tomcat/logs")
+//
+//            val totalLogs = logsDir.listFiles()!!.size
+//            var totalProcessingLogs = 0
+//            var totalProcessedLogs = 0
+//
+//            println("files ======${logsDir.listFiles()}")
+//
+//            for (logFile in logsDir.listFiles()!!) {
+//
+//                if (logFile.name.endsWith(".log")
+//                    || logFile.name.endsWith(".txt")
+//                ) {
+//
+//                    totalProcessingLogs++
+//
+//                    val fileName = logFile.name
+//
+//                    if (amazonClient.uploadFile(
+//                            fileName, logFile,
+//                            appProperty.s3LogBucketName,
+//                            if (appProperty.runScheduler) EnS3BucketPath.LOGS_SERVER1 else EnS3BucketPath.LOGS_SERVER2
+//                        )
+//                    )
+//                        totalProcessedLogs++
+//
+//                    logFile.delete()
+//
+////                    val date = getLogFileDate(logFile.name)
+////
+////                    if (date < DateTimeUtils.getCurrentDate()) {
+////
+////                        val fileName = logFile.name
+////
+////                        if (amazonClient.uploadFile(fileName, logFile,
+////                                if (appProperty.isProduction()) appProperty.s3LogBucketName else appProperty.s3BucketName,
+////                                if (appProperty.runScheduler) EnS3BucketPath.LOGS_SERVER1 else EnS3BucketPath.LOGS_SERVER2)
+////                        )
+////                            totalProcessedLogs++
+////
+////                        logFile.delete()
+////
+////                    }
+//
+//                }
+//
+//            }
+//
+//            log(
+//                "backUpLogs - back up completed | total log: $totalLogs " +
+//                        "| total processing log: $totalProcessingLogs | total processed log: $totalProcessedLogs"
+//            )
+//
+//        } catch (e: Exception) {
+//            log("backUpLogs - Error in backing logs: ${e.message}")
+//        }
+//
+//    }
+
+
+    @Scheduled(cron = "0 24 12 * * *", zone = "IST")  // TODO: Uncomment for production
     @Async
     fun backUpLogs() {
 
@@ -141,70 +220,53 @@ class RMMScheduler(
             return
 
         try {
-
             log("backUpLogs - process to move log files to S3")
 
-//            val logsDir = if (appProperty.isProduction()) File("/usr/share/tomcat/logs")
-//            else File(appProperty.filePath)
+            val containerName = "rms"  // Replace with your actual container name
+            val logsDirPath = "/usr/local/tomcat/logs"
 
-            val logsDir = File("/usr/local/tomcat/logs")
+            // List log files inside the container
+            val listProcess = Runtime.getRuntime().exec("docker exec $containerName ls $logsDirPath")
+            val logFiles = listProcess.inputStream.bufferedReader().readLines()
 
-            val totalLogs = logsDir.listFiles()!!.size
             var totalProcessingLogs = 0
             var totalProcessedLogs = 0
 
-            println("files ======${logsDir.listFiles()}")
-
-            for (logFile in logsDir.listFiles()!!) {
-
-                if (logFile.name.endsWith(".log")
-                    || logFile.name.endsWith(".txt")
-                ) {
-
+            for (fileName in logFiles) {
+                if (fileName.endsWith(".log") || fileName.endsWith(".txt")) {
                     totalProcessingLogs++
 
-                    val fileName = logFile.name
+                    // Read the log file from the container
+                    val readProcess = Runtime.getRuntime().exec("docker exec $containerName cat $logsDirPath/$fileName")
+                    val logContent = readProcess.inputStream.bufferedReader().readText()
+
+                    // Create a temporary file to write the log content to
+                    val tempFile = File.createTempFile(fileName, null)
+                    tempFile.writeText(logContent)
 
                     if (amazonClient.uploadFile(
-                            fileName, logFile,
+                            fileName, tempFile,
                             appProperty.s3LogBucketName,
                             if (appProperty.runScheduler) EnS3BucketPath.LOGS_SERVER1 else EnS3BucketPath.LOGS_SERVER2
                         )
-                    )
+                    ) {
                         totalProcessedLogs++
+                    }
 
-                    logFile.delete()
-
-//                    val date = getLogFileDate(logFile.name)
-//
-//                    if (date < DateTimeUtils.getCurrentDate()) {
-//
-//                        val fileName = logFile.name
-//
-//                        if (amazonClient.uploadFile(fileName, logFile,
-//                                if (appProperty.isProduction()) appProperty.s3LogBucketName else appProperty.s3BucketName,
-//                                if (appProperty.runScheduler) EnS3BucketPath.LOGS_SERVER1 else EnS3BucketPath.LOGS_SERVER2)
-//                        )
-//                            totalProcessedLogs++
-//
-//                        logFile.delete()
-//
-//                    }
-
+                    tempFile.delete()
                 }
-
             }
 
             log(
-                "backUpLogs - back up completed | total log: $totalLogs " +
+                "backUpLogs - back up completed | total log: ${logFiles.size} " +
                         "| total processing log: $totalProcessingLogs | total processed log: $totalProcessedLogs"
             )
 
         } catch (e: Exception) {
             log("backUpLogs - Error in backing logs: ${e.message}")
         }
-
     }
+
 
     private fun getLogFileDate(name: String): String {
         return name.replace(".log", "")

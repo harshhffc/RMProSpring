@@ -71,4 +71,4 @@ jobs:
             docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/rms:${{ env.TAG }}
             docker stop rms || true
             docker rm rms || true
-            docker run -d --name rms -p 8449:8449 ${{ secrets.DOCKER_HUB_USERNAME }}/rms:${{ env.TAG }}
+            docker run -d --name rms -p 8449:8080 ${{ secrets.DOCKER_HUB_USERNAME }}/rms:${{ env.TAG }}

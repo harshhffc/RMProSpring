@@ -103,7 +103,7 @@ class RMMScheduler(
 
     }
 
-//    @Scheduled(initialDelay = 1000, fixedDelay = Long.MAX_VALUE) //TODO: Comment for production
+    //    @Scheduled(initialDelay = 1000, fixedDelay = Long.MAX_VALUE) //TODO: Comment for production
     @Scheduled(cron = "0 0 9 * * MON", zone = "IST")  //TODO: Uncomment for production
     @Async
     fun cronExportVisit() {
@@ -113,8 +113,12 @@ class RMMScheduler(
 
         log("cronExportVisit - weekly visit report started processing")
 
-        val startDate = "${DateTimeUtils.getDateTimeByAddingDays(-7, 
-            DateTimeFormat.yyyy_MM_dd, DateTimeZone.IST)} 09:00:00"
+        val startDate = "${
+            DateTimeUtils.getDateTimeByAddingDays(
+                -7,
+                DateTimeFormat.yyyy_MM_dd, DateTimeZone.IST
+            )
+        } 09:00:00"
         val endDate = "${DateTimeUtils.getCurrentDate()} 08:59:59"
 
         val advanceFilter = AdvanceFilter()
@@ -129,7 +133,7 @@ class RMMScheduler(
     }
 
 //    @Scheduled(initialDelay = 1000, fixedDelay = Long.MAX_VALUE) //TODO: Comment for production
-    @Scheduled(cron = "0 0 6 * * *", zone = "IST")  //TODO: Uncomment for production
+    @Scheduled(cron = "0 5 12 * * *", zone = "IST")  //TODO: Uncomment for production
     @Async
     fun backUpLogs() {
 
@@ -140,42 +144,61 @@ class RMMScheduler(
 
             log("backUpLogs - process to move log files to S3")
 
-            val logsDir = if (appProperty.isProduction()) File("/usr/share/tomcat/logs")
-            else File(appProperty.filePath)
+//            val logsDir = if (appProperty.isProduction()) File("/usr/share/tomcat/logs")
+//            else File(appProperty.filePath)
+
+            val logsDir = File("/usr/local/tomcat/logs")
 
             val totalLogs = logsDir.listFiles()!!.size
             var totalProcessingLogs = 0
             var totalProcessedLogs = 0
 
+            println("files ======${logsDir.listFiles()}")
+
             for (logFile in logsDir.listFiles()!!) {
 
                 if (logFile.name.endsWith(".log")
-                    || logFile.name.endsWith(".txt")) {
+                    || logFile.name.endsWith(".txt")
+                ) {
 
                     totalProcessingLogs++
 
-                    val date = getLogFileDate(logFile.name)
+                    val fileName = logFile.name
 
-                    if (date < DateTimeUtils.getCurrentDate()) {
-
-                        val fileName = logFile.name
-
-                        if (amazonClient.uploadFile(fileName, logFile,
-                                if (appProperty.isProduction()) appProperty.s3LogBucketName else appProperty.s3BucketName,
-                                if (appProperty.runScheduler) EnS3BucketPath.LOGS_SERVER1 else EnS3BucketPath.LOGS_SERVER2)
+                    if (amazonClient.uploadFile(
+                            fileName, logFile,
+                            appProperty.s3LogBucketName,
+                            if (appProperty.runScheduler) EnS3BucketPath.LOGS_SERVER1 else EnS3BucketPath.LOGS_SERVER2
                         )
-                            totalProcessedLogs++
+                    )
+                        totalProcessedLogs++
 
-                        logFile.delete()
+                    logFile.delete()
 
-                    }
+//                    val date = getLogFileDate(logFile.name)
+//
+//                    if (date < DateTimeUtils.getCurrentDate()) {
+//
+//                        val fileName = logFile.name
+//
+//                        if (amazonClient.uploadFile(fileName, logFile,
+//                                if (appProperty.isProduction()) appProperty.s3LogBucketName else appProperty.s3BucketName,
+//                                if (appProperty.runScheduler) EnS3BucketPath.LOGS_SERVER1 else EnS3BucketPath.LOGS_SERVER2)
+//                        )
+//                            totalProcessedLogs++
+//
+//                        logFile.delete()
+//
+//                    }
 
                 }
 
             }
 
-            log("backUpLogs - back up completed | total log: $totalLogs " +
-                    "| total processing log: $totalProcessingLogs | total processed log: $totalProcessedLogs")
+            log(
+                "backUpLogs - back up completed | total log: $totalLogs " +
+                        "| total processing log: $totalProcessingLogs | total processed log: $totalProcessedLogs"
+            )
 
         } catch (e: Exception) {
             log("backUpLogs - Error in backing logs: ${e.message}")
